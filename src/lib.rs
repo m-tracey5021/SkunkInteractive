@@ -1,4 +1,6 @@
 
+pub mod tests;
+
 use skunk::language::{construction::{parsing::Parser, program::{invoke_function, Program}}, components::{symbol::Symbol as SkSymbol, indexed_expression::IndexedExpression}, interpretation::evaluation::Result};
 use serde::{Serialize, Deserialize};
 use wasm_bindgen::prelude::*;
@@ -6,23 +8,27 @@ use wasm_bindgen::prelude::*;
 #[derive(Serialize, Deserialize)]
 pub struct DataSet {
 
+    pub dimensions: usize,
+
     pub data: Vec<Vec<i32>>
 }
 
 #[wasm_bindgen]
-pub fn sk_run(input: &str) -> String {
+pub fn sk_run(input: &str) -> JsValue {
     
     let output = Program::new().run_with_output(&input.to_string());
 
-    let mut output_str = String::new();
+    return JsValue::from_serde(&output).unwrap();
 
-    for output_ln in output {
+    // let mut output_str = String::new();
 
-        output_str.push_str(&output_ln);
+    // for output_ln in output {
 
-        output_str.push_str(&"\n");
-    }  
-    return output_str;  
+    //     output_str.push_str(&output_ln);
+
+    //     output_str.push_str(&"\n");
+    // }  
+    // return output_str;  
 }
 
 #[wasm_bindgen]
@@ -59,41 +65,33 @@ pub fn sk_invoke(function_name: &str, parameters: &JsValue) -> String {
 
 #[wasm_bindgen]
 pub fn sk_dataset(input: &str) -> JsValue { // convert skunk tuple to array of integers
-    
+
     let mut parser = Parser::new();
 
     let parsed = parser.parse_expression(&input.to_owned());
 
-    let mut dataset: Vec<Vec<i32>> = Vec::new();
+    let tuple_transformed = parsed.at_root().to_axes();
 
-    match parsed.at_root().node() {
+    let dimensions = tuple_transformed.at_root().children().len();
 
-        SkSymbol::Tuple => {
+    let mut data: Vec<Vec<i32>> = Vec::new(); 
 
-            for child in parsed.at_root().children() {
+    for axis in tuple_transformed.at_root().children() {
 
-                match parsed.at(&child).node() {
+        let mut axis_values = Vec::new();
 
-                    SkSymbol::Tuple => {
+        for grandchild in tuple_transformed.at(&axis).children() {
 
-                        let mut point = Vec::new();
+            match tuple_transformed.at(&grandchild).numeric_value() {
 
-                        for grandchild in parsed.at(&child).children() {
+                Some(value) => axis_values.push(value),
 
-                            match parsed.at(&grandchild).numeric_value() {
-
-                                Some(value) => point.push(value),
-            
-                                None => point.push(0)
-                            }
-                        }
-                        dataset.push(point);
-                    },
-                    _ => panic!("Not a dataset")
-                }
+                None => axis_values.push(0)
             }
-            return JsValue::from_serde(&dataset).unwrap();
-        },
-        _ => panic!("Not a dataset")
+        }
+        data.push(axis_values);
     }
+    let dataset = DataSet { data: data, dimensions: dimensions };
+
+    return JsValue::from_serde(&dataset).unwrap();
 }
