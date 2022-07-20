@@ -1,7 +1,7 @@
 
 pub mod tests;
 
-use skunk::language::{construction::{parsing::Parser, program::{invoke_function, Program}}, components::{symbol::Symbol as SkSymbol, indexed_expression::IndexedExpression}, interpretation::evaluation::Result};
+use skunk::language::{construction::{parsing::Parser, program::{invoke_function, Program}}, components::{symbol::Symbol as SkSymbol, indexed_expression::IndexedExpression}, interpretation::evaluation::SkResult};
 use serde::{Serialize, Deserialize};
 use wasm_bindgen::prelude::*;
 
@@ -54,9 +54,9 @@ pub fn sk_invoke(function_name: &str, parameters: &JsValue) -> String {
 
             match result {
 
-                Result::Success(result) => result.to_string(),
+                SkResult::Success(result) => result.to_string(),
 
-                Result::Failure(error) => error
+                SkResult::Failure(error) => error
             }
         },
         None => String::from("Function is not defined")
